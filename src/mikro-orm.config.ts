@@ -2,6 +2,7 @@ import { __prod__ } from "./constants";
 import { Post } from "./entities/Post";
 import { MikroORM } from "@mikro-orm/core"
 import path from 'path'
+import { User } from "./entities/User";
 
 export default {
     migrations: {
@@ -16,7 +17,7 @@ export default {
     type: 'mysql',
     //when not in production -> debugging is on -> log output
     debug: __prod__,
-    entities: [Post]
+    entities: [Post, User] //set up migration, entities to keep track
 } as Parameters<typeof MikroORM.init>[0]; 
 //type gets more specific to be a const. You want the types to be exact
 //export it as the exact type of MikroOrm. Using this lets you plug this in index.ts file
