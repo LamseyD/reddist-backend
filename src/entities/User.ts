@@ -16,7 +16,7 @@ export class User {
     @Property({type: "date", onUpdate: () => new Date() })
     updatedAt = new Date();
 
-    @Field() //if no field -> can't query it
+    @Field(() => String) //if no field -> can't query it
     @Property({ unique: true })
     username!: string;
 
