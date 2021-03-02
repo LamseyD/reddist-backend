@@ -61,13 +61,22 @@ __decorate([
     __metadata("design:type", Array)
 ], UserResponse.prototype, "errors", void 0);
 __decorate([
-    type_graphql_1.Field(() => [User_1.User], { nullable: true }),
+    type_graphql_1.Field(() => User_1.User, { nullable: true }),
     __metadata("design:type", User_1.User)
 ], UserResponse.prototype, "user", void 0);
 UserResponse = __decorate([
     type_graphql_1.ObjectType()
 ], UserResponse);
 let UserResolver = class UserResolver {
+    me({ req, em }) {
+        var _a;
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!((_a = req.session) === null || _a === void 0 ? void 0 : _a.userId))
+                return null;
+            const user = yield em.findOne(User_1.User, { id: req.session.userId });
+            return user;
+        });
+    }
     register(options, { em }) {
         return __awaiter(this, void 0, void 0, function* () {
             if (options.username.length <= 2) {
@@ -84,13 +93,27 @@ let UserResolver = class UserResolver {
             }
             const hashedPassword = yield argon2_1.default.hash(options.password);
             const user = em.create(User_1.User, { username: options.username, password: hashedPassword });
-            yield em.persistAndFlush(user);
+            try {
+                yield em.persistAndFlush(user);
+            }
+            catch (err) {
+                if (err.sqlState === "23000")
+                    return {
+                        errors: [{
+                                field: "username",
+                                message: "username already exists",
+                            }
+                        ]
+                    };
+                console.log("error: ", err.message);
+            }
+            req.session.userId = user.id;
             return {
                 user
             };
         });
     }
-    login(options, { em }) {
+    login(options, { em, req }) {
         return __awaiter(this, void 0, void 0, function* () {
             const user = yield em.findOneOrFail(User_1.User, { username: options.username });
             if (!user) {
@@ -103,14 +126,29 @@ let UserResolver = class UserResolver {
             }
             const valid = yield argon2_1.default.verify(user.password, options.password);
             if (!valid) {
-                return {};
+                return {
+                    errors: [
+                        {
+                            field: "password",
+                            message: "incorrect password",
+                        }
+                    ]
+                };
             }
+            req.session.userId = user.id;
             return {
                 user
             };
         });
     }
 };
+__decorate([
+    type_graphql_1.Query(() => User_1.User, { nullable: true }),
+    __param(0, type_graphql_1.Ctx()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], UserResolver.prototype, "me", null);
 __decorate([
     type_graphql_1.Mutation(() => UserResponse),
     __param(0, type_graphql_1.Arg('options')),
