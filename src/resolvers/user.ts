@@ -2,6 +2,7 @@ import { User } from "../entities/User";
 import { MyContext } from "src/types";
 import { Resolver, Mutation, InputType, Field, Arg, Ctx, ObjectType, Query } from "type-graphql";
 import argon2 from "argon2";
+// import {EntityManager} from "@mikro-orm/mysql";
 
 @InputType()
 class UsernamePasswordInput{
@@ -46,7 +47,7 @@ export class UserResolver{
     @Mutation(() => UserResponse)
     async register(
         @Arg('options') options: UsernamePasswordInput, //one way to do it or mention it specifically like in post
-        @Ctx() {em}: MyContext
+        @Ctx() {em, req}: MyContext
         //or @Arg('options', () => UsernamePasswordInput)
     ): Promise<UserResponse>{
         if (options.username.length <= 2){
@@ -63,8 +64,21 @@ export class UserResolver{
             }]}
         }
         const hashedPassword = await argon2.hash(options.password);
-        const user = em.create(User, {username: options.username, password: hashedPassword});
+        const user = em.create(User, {
+            username: options.username, 
+            password: hashedPassword});
+        // let user;
         try {
+            // entity builder using Knex
+            // const result = await (em as EntityManager).createQueryBuilder(User).getKnexQuery().insert(
+            //     {
+            //         username: options.username,
+            //         password: hashedPassword,
+            //         created_at: new Date(),
+            //         updated_at: new Date()
+            //     }
+            // ).returning("*");
+            // user = result[0];
             await em.persistAndFlush(user);
         } catch (err){
             if (err.sqlState === "23000")
@@ -77,7 +91,7 @@ export class UserResolver{
                 }
             console.log("error: ", err.message);
         }
-        // @ts-ignore: type for userId missing here
+
         req.session.userId = user.id; //storing user id in session
         return {
             user
@@ -111,7 +125,6 @@ export class UserResolver{
                 ]
             }
         }
-        // @ts-ignore: type for userId missing here
         req.session.userId = user.id; //storing user id in session
         return {
             user

@@ -77,7 +77,7 @@ let UserResolver = class UserResolver {
             return user;
         });
     }
-    register(options, { em }) {
+    register(options, { em, req }) {
         return __awaiter(this, void 0, void 0, function* () {
             if (options.username.length <= 2) {
                 return { errors: [{
@@ -92,7 +92,10 @@ let UserResolver = class UserResolver {
                         }] };
             }
             const hashedPassword = yield argon2_1.default.hash(options.password);
-            const user = em.create(User_1.User, { username: options.username, password: hashedPassword });
+            const user = em.create(User_1.User, {
+                username: options.username,
+                password: hashedPassword
+            });
             try {
                 yield em.persistAndFlush(user);
             }
