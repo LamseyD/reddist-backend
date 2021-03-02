@@ -14,9 +14,7 @@ import { buildSchema } from "type-graphql"; //create graphql schema
 import { HelloResolver } from "./resolvers/hello";
 import { PostResolver } from "./resolvers/post";
 import { UserResolver } from "./resolvers/user";
-import { MyContext } from "./types";
-
-
+import cors from 'cors'
 
 const main = async () => {
     //handle database transactions
@@ -25,6 +23,11 @@ const main = async () => {
 
     const app = express();
 
+    app.use(cors({
+        origin: "http://localhost:3000",
+        credentials: true
+    }))
+    
     const RedisStore = connectRedis(session);
     const redisClient = redis.createClient({host: "127.0.0.1", port: 6379});
 
@@ -52,12 +55,12 @@ const main = async () => {
             resolvers:[UserResolver, HelloResolver, PostResolver],
             validate: false
         }),
-        context: ({req, res}): MyContext => {
+        context: ({req, res}) => {
             return ({ em: orm.em, req, res });
         } //access req, res context in apollo server with express
     })
 
-    apolloServer.applyMiddleware({ app })
+    apolloServer.applyMiddleware({ app, cors: false })
 
     app.listen(4000, () => {
         console.log('App is listening on port 4000.');
