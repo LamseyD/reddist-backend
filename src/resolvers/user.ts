@@ -1,6 +1,6 @@
 import { User } from "../entities/User";
 import { MyContext } from "src/types";
-import { Resolver, Mutation, InputType, Field, Arg, Ctx, ObjectType } from "type-graphql";
+import { Resolver, Mutation, InputType, Field, Arg, Ctx, ObjectType, Query } from "type-graphql";
 import argon2 from "argon2";
 
 @InputType()
@@ -25,12 +25,24 @@ class UserResponse {
     @Field(() => [FieldError], {nullable: true}) //specify type specifically because they're nullable
     errors?: FieldError[]
 
-    @Field(() => [User], {nullable: true})
+    @Field(() => User, {nullable: true})
     user?: User
 }
 
 @Resolver()
 export class UserResolver{
+    @Query(() => User, {nullable: true})
+    async me(
+        @Ctx() { req, em }: MyContext
+    ): Promise<User | null> {
+        // @ts-ignore: type for userId missing here
+        if (!req.session?.userId)
+            return null;
+
+        // @ts-ignore: type for userId missing here
+        const user = await em.findOne(User, {id: req.session.userId});
+        return user;
+    }
     @Mutation(() => UserResponse)
     async register(
         @Arg('options') options: UsernamePasswordInput, //one way to do it or mention it specifically like in post
@@ -52,7 +64,21 @@ export class UserResolver{
         }
         const hashedPassword = await argon2.hash(options.password);
         const user = em.create(User, {username: options.username, password: hashedPassword});
-        await em.persistAndFlush(user);
+        try {
+            await em.persistAndFlush(user);
+        } catch (err){
+            if (err.sqlState === "23000")
+                return {
+                    errors: [{
+                        field: "username",
+                        message: "username already exists",
+                    }
+                    ]
+                }
+            console.log("error: ", err.message);
+        }
+        // @ts-ignore: type for userId missing here
+        req.session.userId = user.id; //storing user id in session
         return {
             user
         };
@@ -61,7 +87,7 @@ export class UserResolver{
     @Mutation(() => UserResponse)
     async login(
         @Arg('options') options: UsernamePasswordInput, //one way to do it or mention it specifically like in post
-        @Ctx() {em}: MyContext
+        @Ctx() { em, req }: MyContext
         //or @Arg('options', () => UsernamePasswordInput)
     ): Promise<UserResponse> {
         const user = await em.findOneOrFail(User, {username: options.username});
@@ -77,9 +103,16 @@ export class UserResolver{
         const valid = await argon2.verify( user.password ,options.password);
         if (!valid) {
             return {
-
+                errors: [
+                    {
+                        field: "password",
+                        message: "incorrect password",
+                    }
+                ]
             }
         }
+        // @ts-ignore: type for userId missing here
+        req.session.userId = user.id; //storing user id in session
         return {
             user
         };
