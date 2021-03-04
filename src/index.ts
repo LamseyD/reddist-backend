@@ -1,7 +1,7 @@
 import "reflect-metadata";
 //to compile ts files in node -> use ts-node
 import { MikroORM } from "@mikro-orm/core";
-import { __prod__ } from "./constants";
+import { COOKIE_NAME, __prod__ } from "./constants";
 import microConfig from "./mikro-orm.config";
 
 import express from 'express';
@@ -34,7 +34,7 @@ const main = async () => {
     //run session middleware before apollo middleware because you want sessions inside apollo
     app.use(
         session({
-            name: 'qid', //cookie name
+            name: COOKIE_NAME, //cookie name
             //when storing data in redis, ttl means how long data last in redis. if user does an action, ping 
             //redis and extend the data ttl. if disable touch/ttl makes redis data live forever, however this shouldn't be in production
             store: new RedisStore({ client: redisClient, disableTouch: true}), //tell express we're using redis
