@@ -19,6 +19,8 @@ import cors from 'cors'
 const main = async () => {
     //handle database transactions
     const orm = await MikroORM.init(microConfig);
+    //! Wipe your data here. - Be careful.
+    // await orm.em.nativeDelete(User, {})
     await orm.getMigrator().up(); //runs when server restarts, don't rerun old migrations
 
     const app = express();

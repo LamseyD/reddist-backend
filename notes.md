@@ -30,3 +30,7 @@ server makes a request to redis
 sess:qwoeiuowqjoqjw -> { userId: 1 }
 
 req.session = { userId: 1 }
+
+# Future features
+
+Replace login so it only supports username

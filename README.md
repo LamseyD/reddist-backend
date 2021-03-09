@@ -14,4 +14,4 @@ Technology used
 # Create migration
 `npm run create:migration` does not work.
 
-Do `npx mikro-orm create:migration` instead.
+Do `npx mikro-orm migration:create` instead.
