@@ -1,12 +1,12 @@
 import "reflect-metadata";
 //to compile ts files in node -> use ts-node
-import { MikroORM } from "@mikro-orm/core";
+// import { MikroORM } from "@mikro-orm/core";
 import { COOKIE_NAME, __prod__ } from "./constants";
-import microConfig from "./mikro-orm.config";
+// import microConfig from "./mikro-orm.config";
 
 import express from 'express';
-import redis from 'redis';
-// import Redis from "ioredis";
+// import redis from 'redis';
+import redis from "ioredis";
 import session from 'express-session';
 import connectRedis from 'connect-redis';
 import { ApolloServer } from 'apollo-server-express'; //for GraphQL endpoints
@@ -14,14 +14,21 @@ import { buildSchema } from "type-graphql"; //create graphql schema
 import { HelloResolver } from "./resolvers/hello";
 import { PostResolver } from "./resolvers/post";
 import { UserResolver } from "./resolvers/user";
-import cors from 'cors'
+import cors from 'cors';
+
+import { createConnection } from 'typeorm';
+import typeormConfig from "./typeorm.config";
 
 const main = async () => {
     //handle database transactions
-    const orm = await MikroORM.init(microConfig);
+    // @ts-ignore
+    const conn = await createConnection(typeormConfig)
+
+    //Mikroorm
+    // const orm = await MikroORM.init(microConfig);
     //! Wipe your data here. - Be careful.
-    // await orm.em.nativeDelete(User, {})
-    await orm.getMigrator().up(); //runs when server restarts, don't rerun old migrations
+    //! await orm.em.nativeDelete(User, {})
+    // await orm.getMigrator().up(); //runs when server restarts, don't rerun old migrations
 
     const app = express();
 
@@ -31,7 +38,7 @@ const main = async () => {
     }))
     
     const RedisStore = connectRedis(session);
-    const redisClient = redis.createClient({host: "127.0.0.1", port: 6379});
+    const redisClient = new redis();
 
     //run session middleware before apollo middleware because you want sessions inside apollo
     app.use(
@@ -58,7 +65,7 @@ const main = async () => {
             validate: false
         }),
         context: ({req, res}) => {
-            return ({ em: orm.em, req, res });
+            return ({ req, res, redisClient });
         } //access req, res context in apollo server with express
     })
 
