@@ -1,8 +1,12 @@
+import path from "path";
 import { createConnection } from "typeorm";
 import { Post } from "./entities/Post";
 import { User } from "./entities/User";
 
 export default {
+    migrations: [
+        path.join(__dirname,'./migrations'), // path to the folder with migrations
+    ],
     type: 'mysql',
     database: 'lireddit',
     username: 'root',
