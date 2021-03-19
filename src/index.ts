@@ -24,6 +24,8 @@ const main = async () => {
     // @ts-ignore
     const conn = await createConnection(typeormConfig)
 
+    // await conn.runMigrations();
+
     //Mikroorm
     // const orm = await MikroORM.init(microConfig);
     //! Wipe your data here. - Be careful.
