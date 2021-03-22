@@ -1,6 +1,6 @@
 import { isAuth } from "../middleware/isAuth";
 import { MyContext } from "src/types";
-import { Resolver, Query, Arg, Mutation, InputType, Field, Ctx, UseMiddleware, Int } from "type-graphql";
+import { Resolver, Query, Arg, Mutation, InputType, Field, Ctx, UseMiddleware, Int, FieldResolver, Root, ObjectType } from "type-graphql";
 import { Post } from '../entities/Post';
 import { getConnection } from "typeorm";
 
@@ -13,27 +13,47 @@ class PostInput{
     text!: string;
 }
 
+@ObjectType()
+class PaginatedPosts{
+    @Field(() => [Post])
+    posts!: Post[]
+
+    @Field()
+    hasMore!: boolean
+}
+
 //simple CRUD
-@Resolver()
+@Resolver(Post)
 export class PostResolver{
-    @Query(() => [Post]) //setting graphQL type
-    posts(
+    //returns a string. Field we create and send to client. 
+    //This gets called when there's a Post object
+    @FieldResolver(() => String) 
+    textSnippet(
+        @Root() root: Post 
+    ): string{
+        return root.text.slice(0, 50) + "...";
+    }
+
+    @Query(() => PaginatedPosts) //setting graphQL type
+    async posts(
         // @Ctx(){ em }: MyContext
         @Arg('limit', () => Int) limit: number, //type number is default to be float in GraphQL
         // @Arg('offset') offset: number //! Offset Pagination
         @Arg('cursor', () => String, {nullable: true}) cursor: string | null
-    ): Promise<Post[]>{ //setting TypeScript type here
-        const maxPosts = Math.min(50, limit);
+    ): Promise<PaginatedPosts>{ //setting TypeScript type here
+        const maxPosts = Math.min(50, limit) + 1;
         const qb = getConnection()
         .getRepository(Post)
         .createQueryBuilder("p")
         .orderBy("createdAt", "DESC")
-        .limit(maxPosts)
+        .take(maxPosts)
         
         if (cursor)
-            qb.where("createdAt >= :cursor", {cursor: new Date(parseInt(cursor))})
+            qb.where("createdAt < :cursor", {cursor: new Date(parseInt(cursor))})
 
-        return qb.getMany();
+        const posts = await qb.getMany();
+        console.log(posts.length)
+        return {posts: posts.slice(0, maxPosts - 1), hasMore: posts.length === maxPosts};
         // return em.find(Post, {});
         // return Post.find();
     }
