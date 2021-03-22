@@ -282,7 +282,7 @@ export class mockData1616105286184 implements MigrationInterface {
         Donec diam neque, vestibulum eget, vulputate ut, ultrices vel, augue. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Donec pharetra, magna vestibulum aliquet ultrices, erat tortor sollicitudin mi, sit amet lobortis sapien sapien non mi. Integer ac neque.', 2119, 1);
         `)
     }
-    //@ts-ignore
+    //@ts-ignore -> this is for reverting changes
     public async down(queryRunner: QueryRunner): Promise<void> {
     }
 
