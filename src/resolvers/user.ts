@@ -1,6 +1,6 @@
 import { User } from "../entities/User";
 import { MyContext } from "../types";
-import { Resolver, Mutation, Arg, Ctx, Query } from "type-graphql";
+import { Resolver, Mutation, Arg, Ctx, Query, FieldResolver, Root } from "type-graphql";
 import argon2 from "argon2";
 import { COOKIE_NAME, FORGOT_PASSWORD_PREFIX } from "../constants";
 import { UsernamePasswordInput } from "../entities/UsernamePasswordInput";
@@ -10,8 +10,20 @@ import { sendEmail } from "../utils/sendEmail";
 import {v4} from 'uuid';
 // import { getConnection } from "typeorm";
 
-@Resolver()
+@Resolver(User)
 export class UserResolver{
+    //email only accessible if user is logged in
+    @FieldResolver(() => String)
+    email(
+        @Root() user: User,
+        @Ctx() {req}: MyContext
+    ): string{
+        if (req.session.userId === user.id){
+            return user.email;
+        }
+        return "";
+    }
+
     @Mutation(() => UserResponse)
     async changePassword(
         @Arg('token') token: string,

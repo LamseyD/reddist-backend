@@ -1,6 +1,7 @@
 // import { Entity, PrimaryKey, Property } from "@mikro-orm/core"
 import { Field, Int, ObjectType } from "type-graphql";
-import { BaseEntity, Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
+import { BaseEntity, Column, CreateDateColumn, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
+import { Upvote } from "./Upvote";
 import { User } from "./User";
 
 @ObjectType()
@@ -23,7 +24,8 @@ export class Post extends BaseEntity {
 	title!: string;
 
 	//create a foreign key to user
-	@ManyToOne(() => User, user => user.posts)
+	@Field()
+	@ManyToOne(() => User, (user) => user.posts)
     creator!: User;
 	
 	@Field()
@@ -37,4 +39,7 @@ export class Post extends BaseEntity {
 	@Field()
 	@Column({type: "int", default: 0})
 	points!: number;
+
+	@OneToMany(() => Upvote, (upvote) => upvote.post)
+	upvotes!: Upvote[];
 }

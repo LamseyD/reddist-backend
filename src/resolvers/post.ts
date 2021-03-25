@@ -3,6 +3,7 @@ import { MyContext } from "src/types";
 import { Resolver, Query, Arg, Mutation, InputType, Field, Ctx, UseMiddleware, Int, FieldResolver, Root, ObjectType } from "type-graphql";
 import { Post } from '../entities/Post';
 import { getConnection } from "typeorm";
+import { Upvote } from "../entities/Upvote";
 
 @InputType()
 class PostInput{
@@ -33,6 +34,41 @@ export class PostResolver{
     ): string{
         return root.text.slice(0, 50) + "...";
     }
+    
+    @Mutation(() => Boolean)
+    @UseMiddleware(isAuth)
+    async vote(
+        @Arg('postId', () => Int) postId: number,
+        @Arg('value', () => Int) value: number,
+        @Ctx() {req}: MyContext
+    ): Promise<boolean>{
+        const isUpvote = value > 0;
+        const realValue = isUpvote ? 1 : -1
+        const {userId} = req.session;
+        try {
+            await Upvote.insert({
+                userId,
+                postId,
+                value: realValue,
+            })
+            const post = await Post.findOne({id: postId});
+            if (post){
+                post.points = post.points + realValue;
+                await Post.save(post);
+            }
+        } catch (error){
+            console.log("error: Something went wrong while upvoting. \n", error)
+            return false;
+        }
+
+
+        //---------------OR
+        // await getConnection().query(
+        //     `START TRANSACTION; insert into upvote("userId", "postId", value) values (${userId}, ${postId}, ${realValue}); update post set points = points + ${realValue} where id = ${postId}; COMMIT;`
+        // );
+
+        return true;
+    }
 
     @Query(() => PaginatedPosts) //setting graphQL type
     async posts(
@@ -45,11 +81,12 @@ export class PostResolver{
         const qb = getConnection()
         .getRepository(Post)
         .createQueryBuilder("p")
-        .orderBy("createdAt", "DESC")
+        .innerJoinAndSelect("p.creator", "user", "user.id = p.creatorId")
+        .orderBy("p.createdAt", "DESC")
         .take(maxPosts)
         
         if (cursor)
-            qb.where("createdAt < :cursor", {cursor: new Date(parseInt(cursor))})
+            qb.where("p.createdAt < :cursor", {cursor: new Date(parseInt(cursor))})
 
         const posts = await qb.getMany();
         console.log(posts.length)
@@ -93,7 +130,7 @@ export class PostResolver{
         if (typeof title !== 'undefined'){
             post.title = title;
             // await em.persistAndFlush(post);
-            Post.update({id}, {title});
+            await Post.update({id}, {title});
         }
         return post;
     }

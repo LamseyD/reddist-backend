@@ -1,6 +1,7 @@
 import path from "path";
 import { createConnection } from "typeorm";
 import { Post } from "./entities/Post";
+import { Upvote } from "./entities/Upvote";
 import { User } from "./entities/User";
 
 export default {
@@ -14,5 +15,5 @@ export default {
     password: 'password',
     logging: true,
     synchronize: true, //create table for you without making migrations
-    entities: [Post, User]
+    entities: [Post, User, Upvote]
 } as Parameters<typeof createConnection>[0];

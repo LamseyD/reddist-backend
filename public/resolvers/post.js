@@ -26,6 +26,7 @@ const isAuth_1 = require("../middleware/isAuth");
 const type_graphql_1 = require("type-graphql");
 const Post_1 = require("../entities/Post");
 const typeorm_1 = require("typeorm");
+const Upvote_1 = require("../entities/Upvote");
 let PostInput = class PostInput {
 };
 __decorate([
@@ -56,16 +57,41 @@ let PostResolver = class PostResolver {
     textSnippet(root) {
         return root.text.slice(0, 50) + "...";
     }
+    vote(postId, value, { req }) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const isUpvote = value > 0;
+            const realValue = isUpvote ? 1 : -1;
+            const { userId } = req.session;
+            try {
+                yield Upvote_1.Upvote.insert({
+                    userId,
+                    postId,
+                    value: realValue,
+                });
+                const post = yield Post_1.Post.findOne({ id: postId });
+                if (post) {
+                    post.points = post.points + realValue;
+                    yield Post_1.Post.save(post);
+                }
+            }
+            catch (error) {
+                console.log("error: Something went wrong while upvoting. \n", error);
+                return false;
+            }
+            return true;
+        });
+    }
     posts(limit, cursor) {
         return __awaiter(this, void 0, void 0, function* () {
             const maxPosts = Math.min(50, limit) + 1;
             const qb = typeorm_1.getConnection()
                 .getRepository(Post_1.Post)
                 .createQueryBuilder("p")
-                .orderBy("createdAt", "DESC")
+                .innerJoinAndSelect("p.creator", "user", "user.id = p.creatorId")
+                .orderBy("p.createdAt", "DESC")
                 .take(maxPosts);
             if (cursor)
-                qb.where("createdAt < :cursor", { cursor: new Date(parseInt(cursor)) });
+                qb.where("p.createdAt < :cursor", { cursor: new Date(parseInt(cursor)) });
             const posts = yield qb.getMany();
             console.log(posts.length);
             return { posts: posts.slice(0, maxPosts - 1), hasMore: posts.length === maxPosts };
@@ -88,7 +114,7 @@ let PostResolver = class PostResolver {
             }
             if (typeof title !== 'undefined') {
                 post.title = title;
-                Post_1.Post.update({ id }, { title });
+                yield Post_1.Post.update({ id }, { title });
             }
             return post;
         });
@@ -107,6 +133,16 @@ __decorate([
     __metadata("design:paramtypes", [Post_1.Post]),
     __metadata("design:returntype", String)
 ], PostResolver.prototype, "textSnippet", null);
+__decorate([
+    type_graphql_1.Mutation(() => Boolean),
+    type_graphql_1.UseMiddleware(isAuth_1.isAuth),
+    __param(0, type_graphql_1.Arg('postId', () => type_graphql_1.Int)),
+    __param(1, type_graphql_1.Arg('value', () => type_graphql_1.Int)),
+    __param(2, type_graphql_1.Ctx()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, Number, Object]),
+    __metadata("design:returntype", Promise)
+], PostResolver.prototype, "vote", null);
 __decorate([
     type_graphql_1.Query(() => PaginatedPosts),
     __param(0, type_graphql_1.Arg('limit', () => type_graphql_1.Int)),
