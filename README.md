@@ -5,6 +5,10 @@ Technology used
 - TypeScript
 - MikroORM
 - Node.JS
+- TypeORM
+- Apollo GraphQL Client
+- GraphQL
+- Express and Cors
 
 # How to start development
 `npm run watch` - start typescript compilation
