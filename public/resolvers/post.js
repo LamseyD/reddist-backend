@@ -62,38 +62,78 @@ let PostResolver = class PostResolver {
             const isUpvote = value > 0;
             const realValue = isUpvote ? 1 : -1;
             const { userId } = req.session;
-            try {
-                yield Upvote_1.Upvote.insert({
-                    userId,
-                    postId,
-                    value: realValue,
-                });
-                const post = yield Post_1.Post.findOne({ id: postId });
-                if (post) {
-                    post.points = post.points + realValue;
-                    yield Post_1.Post.save(post);
+            const upvote = yield Upvote_1.Upvote.findOne({ where: { postId, userId } });
+            const post = yield Post_1.Post.findOne({ id: postId });
+            if (upvote) {
+                try {
+                    if (upvote.value !== realValue) {
+                        upvote.value = realValue;
+                        yield Upvote_1.Upvote.save(upvote);
+                        if (post) {
+                            post.points = post.points + 2 * realValue;
+                            yield Post_1.Post.save(post);
+                        }
+                    }
+                    else {
+                        yield Upvote_1.Upvote.delete({ userId, postId });
+                        if (post) {
+                            post.points = post.points - realValue;
+                            yield Post_1.Post.save(post);
+                        }
+                    }
+                }
+                catch (error) {
+                    console.log("error: Something went wrong while trying to change vote. \n", error.message);
+                    return false;
                 }
             }
-            catch (error) {
-                console.log("error: Something went wrong while upvoting. \n", error);
-                return false;
+            else {
+                try {
+                    yield Upvote_1.Upvote.insert({
+                        userId,
+                        postId,
+                        value: realValue,
+                    });
+                    if (post) {
+                        post.points = post.points + realValue;
+                        yield Post_1.Post.save(post);
+                    }
+                }
+                catch (error) {
+                    console.log("error: Something went wrong while upvoting. \n", error);
+                    return false;
+                }
             }
             return true;
         });
     }
-    posts(limit, cursor) {
+    posts(limit, cursor, { req }) {
         return __awaiter(this, void 0, void 0, function* () {
             const maxPosts = Math.min(50, limit) + 1;
-            const qb = typeorm_1.getConnection()
-                .getRepository(Post_1.Post)
-                .createQueryBuilder("p")
-                .innerJoinAndSelect("p.creator", "user", "user.id = p.creatorId")
-                .orderBy("p.createdAt", "DESC")
-                .take(maxPosts);
+            let posts = yield typeorm_1.getConnection().query(`   select 
+                p.*,
+                JSON_OBJECT(
+                    'id', u.id,
+                    'username', u.username,
+                    'email', u.email,
+                    'createdAt', u.createdAt,
+                    'updatedAt', u.updatedAt
+                ) AS creator,
+                ${req.session.userId ? (`(select value from upvote where userId = ${req.session.userId} and postId = p.id) as voteStatus`) : ("null as voteStatus")}
+            from post p
+            inner join lireddit.user u on u.id = p.creatorId
+            ${cursor ? `where p.createdAt < '${(new Date(parseInt(cursor) - 3600 * 1000 * 4)).toISOString()}'` : ""}
+            order by p.createdAt DESC
+            limit ${maxPosts}
+        `);
+            posts = posts.map((p) => {
+                let parsedCreator = JSON.parse(p.creator);
+                p.creator = parsedCreator;
+                return p;
+            });
+            console.log(req.session.userId);
             if (cursor)
-                qb.where("p.createdAt < :cursor", { cursor: new Date(parseInt(cursor)) });
-            const posts = yield qb.getMany();
-            console.log(posts.length);
+                console.log((new Date(parseInt(cursor))).toISOString());
             return { posts: posts.slice(0, maxPosts - 1), hasMore: posts.length === maxPosts };
         });
     }
@@ -147,8 +187,9 @@ __decorate([
     type_graphql_1.Query(() => PaginatedPosts),
     __param(0, type_graphql_1.Arg('limit', () => type_graphql_1.Int)),
     __param(1, type_graphql_1.Arg('cursor', () => String, { nullable: true })),
+    __param(2, type_graphql_1.Ctx()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Object]),
+    __metadata("design:paramtypes", [Number, Object, Object]),
     __metadata("design:returntype", Promise)
 ], PostResolver.prototype, "posts", null);
 __decorate([

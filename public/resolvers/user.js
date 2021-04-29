@@ -94,6 +94,7 @@ let UserResolver = class UserResolver {
             if (!((_a = req.session) === null || _a === void 0 ? void 0 : _a.userId))
                 return;
             const user = yield User_1.User.findOne(req.session.userId);
+            console.log(req.session.userId);
             return user;
         });
     }

@@ -21,3 +21,6 @@ Do `npx mikro-orm migration:create` instead.
 `npx typeorm migration:create -n "name"`
 
 Although most likely typeorm automatically generates SQL for you
+
+# Known issues
+userId doesn't come through when make `posts` request from front end but work when request through graphql client. Potentially because the me query returns after the request for posts starts

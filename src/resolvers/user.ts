@@ -97,6 +97,7 @@ export class UserResolver{
         // @ts-ignore: type for userId missing here
         // const user = await em.findOne(User, {id: req.session.userId});
         const user = await User.findOne(req.session.userId);
+        console.log(req.session.userId)
         return user;
     }
     @Mutation(() => UserResponse)
