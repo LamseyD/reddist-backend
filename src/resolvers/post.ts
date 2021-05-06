@@ -168,12 +168,18 @@ export class PostResolver {
     }
 
     @Query(() => Post, { nullable: true }) //setting graphQL type
-    post(
-        @Arg('id') id: number, //input/ contexts - id is just something we want to use for our code. In actual query use the string in bracket
-        // @Ctx(){ em }: MyContext
+    async post(
+        @Arg('id', () => Int) id: number, //input/ contexts - id is just something we want to use for our code. In actual query use the string in bracket
+        @Ctx(){ req }: MyContext
     ): Promise<Post | undefined> { //setting return TypeScript type here
-        // return em.findOne(Post, {id});
-        return Post.findOne(id);
+        const post = await Post.findOne(id, {relations: ["creator"]});
+        const upvote = await Upvote.findOne({ postId: id, userId: req.session.userId });
+        if (upvote?.value === 1){
+            post!.voteStatus = 1;
+        } else if (upvote?.value === -1){
+            post!.voteStatus = -1;
+        }
+        return post;
     }
 
     @Mutation(() => Post)
@@ -208,12 +214,14 @@ export class PostResolver {
     }
 
     @Mutation(() => Boolean)
+    @UseMiddleware(isAuth)
     async deletePost(
-        @Arg("id") id: number,
-        // @Ctx() { em } : MyContext
+        @Arg("id", () => Int) id: number,
+        @Ctx() { req } : MyContext
     ): Promise<boolean> {
         // await em.nativeDelete(Post, { id });
-        await Post.delete(id);
+        await Upvote.delete({postId: id})
+        await Post.delete({id, creatorId: req.session.userId});
         return true;
     }
 }
