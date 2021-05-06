@@ -137,8 +137,18 @@ let PostResolver = class PostResolver {
             return { posts: posts.slice(0, maxPosts - 1), hasMore: posts.length === maxPosts };
         });
     }
-    post(id) {
-        return Post_1.Post.findOne(id);
+    post(id, { req }) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const post = yield Post_1.Post.findOne(id, { relations: ["creator"] });
+            const upvote = yield Upvote_1.Upvote.findOne({ postId: id, userId: req.session.userId });
+            if ((upvote === null || upvote === void 0 ? void 0 : upvote.value) === 1) {
+                post.voteStatus = 1;
+            }
+            else if ((upvote === null || upvote === void 0 ? void 0 : upvote.value) === -1) {
+                post.voteStatus = -1;
+            }
+            return post;
+        });
     }
     createPost(options, { req }) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -146,22 +156,23 @@ let PostResolver = class PostResolver {
             return post;
         });
     }
-    updatePost(id, title) {
+    updatePost(id, text, { req }) {
         return __awaiter(this, void 0, void 0, function* () {
-            const post = yield Post_1.Post.findOne(id);
+            const post = yield Post_1.Post.findOne(id, { relations: ["creator"] });
             if (!post) {
                 return null;
             }
-            if (typeof title !== 'undefined') {
-                post.title = title;
-                yield Post_1.Post.update({ id }, { title });
+            if (typeof text !== 'undefined') {
+                post.text = text;
+                yield Post_1.Post.update({ id, creatorId: req.session.userId }, { text });
             }
             return post;
         });
     }
-    deletePost(id) {
+    deletePost(id, { req }) {
         return __awaiter(this, void 0, void 0, function* () {
-            yield Post_1.Post.delete(id);
+            yield Upvote_1.Upvote.delete({ postId: id });
+            yield Post_1.Post.delete({ id, creatorId: req.session.userId });
             return true;
         });
     }
@@ -194,9 +205,10 @@ __decorate([
 ], PostResolver.prototype, "posts", null);
 __decorate([
     type_graphql_1.Query(() => Post_1.Post, { nullable: true }),
-    __param(0, type_graphql_1.Arg('id')),
+    __param(0, type_graphql_1.Arg('id', () => type_graphql_1.Int)),
+    __param(1, type_graphql_1.Ctx()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [Number, Object]),
     __metadata("design:returntype", Promise)
 ], PostResolver.prototype, "post", null);
 __decorate([
@@ -210,17 +222,21 @@ __decorate([
 ], PostResolver.prototype, "createPost", null);
 __decorate([
     type_graphql_1.Mutation(() => Post_1.Post, { nullable: true }),
-    __param(0, type_graphql_1.Arg("id")),
-    __param(1, type_graphql_1.Arg("title", () => String, { nullable: true })),
+    type_graphql_1.UseMiddleware(isAuth_1.isAuth),
+    __param(0, type_graphql_1.Arg("id", () => type_graphql_1.Int)),
+    __param(1, type_graphql_1.Arg("text", () => String, { nullable: true })),
+    __param(2, type_graphql_1.Ctx()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, String]),
+    __metadata("design:paramtypes", [Number, String, Object]),
     __metadata("design:returntype", Promise)
 ], PostResolver.prototype, "updatePost", null);
 __decorate([
     type_graphql_1.Mutation(() => Boolean),
-    __param(0, type_graphql_1.Arg("id")),
+    type_graphql_1.UseMiddleware(isAuth_1.isAuth),
+    __param(0, type_graphql_1.Arg("id", () => type_graphql_1.Int)),
+    __param(1, type_graphql_1.Ctx()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [Number, Object]),
     __metadata("design:returntype", Promise)
 ], PostResolver.prototype, "deletePost", null);
 PostResolver = __decorate([

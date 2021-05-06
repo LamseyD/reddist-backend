@@ -195,20 +195,21 @@ export class PostResolver {
     }
 
     @Mutation(() => Post, { nullable: true })
+    @UseMiddleware(isAuth)
     async updatePost(
-        @Arg("id") id: number,
-        @Arg("title", () => String, { nullable: true }) title: string, //must explicitly set the type if set something to nullible
-        // @Ctx() { em } : MyContext
+        @Arg("id", () => Int) id: number,
+        @Arg("text", () => String, { nullable: true }) text: string, //must explicitly set the type if set something to nullible
+        @Ctx() { req } : MyContext
     ): Promise<Post | null> {
         // const post = await em.findOne(Post, { id });
-        const post = await Post.findOne(id);
+        const post = await Post.findOne(id, {relations: ["creator"]});
         if (!post) {
             return null;
         }
-        if (typeof title !== 'undefined') {
-            post.title = title;
+        if (typeof text !== 'undefined') {
+            post.text = text;
             // await em.persistAndFlush(post);
-            await Post.update({ id }, { title });
+            await Post.update({ id, creatorId: req.session.userId }, { text });
         }
         return post;
     }
