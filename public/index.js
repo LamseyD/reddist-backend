@@ -26,6 +26,8 @@ const user_1 = require("./resolvers/user");
 const cors_1 = __importDefault(require("cors"));
 const typeorm_1 = require("typeorm");
 const typeorm_config_1 = __importDefault(require("./typeorm.config"));
+const creatorLoader_1 = __importDefault(require("./utils/creatorLoader"));
+const voteLoader_1 = __importDefault(require("./utils/voteLoader"));
 const main = () => __awaiter(void 0, void 0, void 0, function* () {
     const conn = yield typeorm_1.createConnection(typeorm_config_1.default);
     const app = express_1.default();
@@ -54,7 +56,13 @@ const main = () => __awaiter(void 0, void 0, void 0, function* () {
             validate: false
         }),
         context: ({ req, res }) => {
-            return ({ req, res, redisClient });
+            return ({
+                req,
+                res,
+                redisClient,
+                userLoader: creatorLoader_1.default(),
+                voteLoader: voteLoader_1.default()
+            });
         }
     });
     apolloServer.applyMiddleware({ app, cors: false });

@@ -4,6 +4,7 @@ import { Resolver, Query, Arg, Mutation, InputType, Field, Ctx, UseMiddleware, I
 import { Post } from '../entities/Post';
 import { getConnection } from "typeorm";
 import { Upvote } from "../entities/Upvote";
+import { User } from "../entities/User";
 
 @InputType()
 class PostInput {
@@ -33,6 +34,28 @@ export class PostResolver {
         @Root() root: Post
     ): string {
         return root.text.slice(0, 50) + "...";
+    }
+
+    //pure SQL is better for performance. FieldResolver is better for maintenance
+    //Dataloader helps combining all the request into one request and then load all the creators
+    @FieldResolver(() => User)
+    creator(
+        @Root() root: Post,
+        @Ctx() {userLoader}: MyContext
+    ){
+        return userLoader.load(root.creatorId);
+    }
+
+    @FieldResolver(() => Int, {nullable: true})
+    async voteStatus(
+        @Root() root: Post,
+        @Ctx() {voteLoader, req}: MyContext
+    ) {
+        if (!req.session.userId){
+            return null;
+        }
+        const upvote = await voteLoader.load({postId: root.id, userId: req.session.userId});
+        return upvote ? upvote.value : null;
     }
 
     @Mutation(() => Boolean)
@@ -117,7 +140,6 @@ export class PostResolver {
         @Arg('limit', () => Int) limit: number, //type number is default to be float in GraphQL
         // @Arg('offset') offset: number //! Offset Pagination
         @Arg('cursor', () => String, { nullable: true }) cursor: string | null,
-        @Ctx() { req }: MyContext
     ): Promise<PaginatedPosts> { //setting TypeScript type here
         const maxPosts = Math.min(50, limit) + 1;
         // const qb = getConnection()
@@ -139,46 +161,39 @@ export class PostResolver {
         // console.log("separator");
         
         // console.log(cursor);
+
+        //! create new object in MySQL
+        // JSON_OBJECT(
+        //     'id', u.id,
+        //     'username', u.username,
+        //     'email', u.email,
+        //     'createdAt', u.createdAt,
+        //     'updatedAt', u.updatedAt
+        // ) AS creator,
+        // ${req.session.userId ? (`(select value from upvote where userId = ${req.session.userId} and postId = p.id) as voteStatus`) : ("null as voteStatus")}
+
         let posts = await getConnection().query(
         `   select 
-                p.*,
-                JSON_OBJECT(
-                    'id', u.id,
-                    'username', u.username,
-                    'email', u.email,
-                    'createdAt', u.createdAt,
-                    'updatedAt', u.updatedAt
-                ) AS creator,
-                ${req.session.userId ? (`(select value from upvote where userId = ${req.session.userId} and postId = p.id) as voteStatus`) : ("null as voteStatus")}
+                p.*
             from post p
-            inner join lireddit.user u on u.id = p.creatorId
             ${cursor ? `where p.createdAt < '${(new Date(parseInt(cursor) - 3600 * 1000 * 4)).toISOString()}'` : ""}
             order by p.createdAt DESC
             limit ${maxPosts}
         `);
-        posts = posts.map((p: { creator: string; }) => {
-            let parsedCreator = JSON.parse(p.creator);
-            p.creator = parsedCreator;
-            return p;
-        })
-        console.log(req.session.userId);
-        if (cursor)
-            console.log((new Date(parseInt(cursor))).toISOString())
+        // posts = posts.map((p: { creator: string; }) => {
+        //     let parsedCreator = JSON.parse(p.creator);
+        //     p.creator = parsedCreator;
+        //     return p;
+        // })
+        console.log(posts)
         return { posts: posts.slice(0, maxPosts - 1), hasMore: posts.length === maxPosts };
     }
 
     @Query(() => Post, { nullable: true }) //setting graphQL type
     async post(
         @Arg('id', () => Int) id: number, //input/ contexts - id is just something we want to use for our code. In actual query use the string in bracket
-        @Ctx(){ req }: MyContext
     ): Promise<Post | undefined> { //setting return TypeScript type here
-        const post = await Post.findOne(id, {relations: ["creator"]});
-        const upvote = await Upvote.findOne({ postId: id, userId: req.session.userId });
-        if (upvote?.value === 1){
-            post!.voteStatus = 1;
-        } else if (upvote?.value === -1){
-            post!.voteStatus = -1;
-        }
+        const post = await Post.findOne(id);
         return post;
     }
 
@@ -202,7 +217,7 @@ export class PostResolver {
         @Ctx() { req } : MyContext
     ): Promise<Post | null> {
         // const post = await em.findOne(Post, { id });
-        const post = await Post.findOne(id, {relations: ["creator"]});
+        const post = await Post.findOne(id);
         if (!post) {
             return null;
         }

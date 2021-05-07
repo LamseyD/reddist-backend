@@ -18,6 +18,8 @@ import cors from 'cors';
 
 import { createConnection } from 'typeorm';
 import typeormConfig from "./typeorm.config";
+import creatorLoader from "./utils/creatorLoader";
+import voteLoader from "./utils/voteLoader";
 
 const main = async () => {
     //handle database transactions
@@ -67,7 +69,13 @@ const main = async () => {
             validate: false
         }),
         context: ({req, res}) => {
-            return ({ req, res, redisClient });
+            return ({ 
+                req, 
+                res, 
+                redisClient, 
+                userLoader: creatorLoader(),
+                voteLoader: voteLoader()
+            });
         } //access req, res context in apollo server with express
     })
 
